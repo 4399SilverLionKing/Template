@@ -4,6 +4,7 @@ import path from 'node:path'
 import Vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import Components from 'unplugin-vue-components/vite'
 import VueMacros from 'unplugin-vue-macros/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
@@ -35,6 +36,7 @@ export default defineConfig({
 
     // https://github.com/antfu/unplugin-auto-import
     AutoImport({
+      resolvers: [ElementPlusResolver()],
       imports: [
         'vue',
         '@vueuse/core',
@@ -53,6 +55,7 @@ export default defineConfig({
 
     // https://github.com/antfu/vite-plugin-components
     Components({
+      resolvers: [ElementPlusResolver()],
       dts: true,
     }),
 

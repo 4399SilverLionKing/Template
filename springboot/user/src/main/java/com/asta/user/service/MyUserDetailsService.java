@@ -1,7 +1,7 @@
 package com.asta.user.service;
 
 import com.asta.user.mapper.UsersMapper;
-import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service 
 public class MyUserDetailsService implements UserDetailsService {
 
-    @Resource
+    @Autowired
     private UsersMapper userMapper;
 
     /**

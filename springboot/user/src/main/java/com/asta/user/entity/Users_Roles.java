@@ -33,11 +33,11 @@ public class Users_Roles implements Serializable{
      * 用户id
      */
     @TableField("user_id")
-    private String userId;
+    private Integer userId;
 
     /**
      * 角色id
      */
     @TableField("role_id")
-    private String roleId;
+    private Integer roleId;
 }

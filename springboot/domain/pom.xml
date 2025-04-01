@@ -16,12 +16,6 @@
             <artifactId>common</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- ORM框架 -->
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-            <scope>provided</scope>
-        </dependency>
         <!-- 字段校验 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -5,6 +5,9 @@ import com.asta.domain.vo.JsonVO;
 import com.asta.domain.vo.ResultStatus;
 import com.asta.user.service.MyUserDetailsService;
 import com.asta.user.utils.JwtUtil;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -19,6 +22,7 @@ import java.util.Map;
 
 
 @RestController
+@Slf4j
 public class LoginController {
 
     @Autowired
@@ -36,8 +40,8 @@ public class LoginController {
             // 尝试进行身份验证
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                    dto.getUserName(), 
-                    dto.getUserPassword()
+                    dto.getUsername(),
+                    dto.getPassword()
                 )
             );
         } catch (BadCredentialsException e) {
@@ -47,7 +51,7 @@ public class LoginController {
             return JsonVO.create(null, ResultStatus.SERVER_ERROR);
         }
         // 认证成功，加载用户详情
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(dto.getUserName());
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(dto.getUsername());
 
         // 生成JWT令牌
         final String jwt = jwtUtil.generateToken(userDetails);

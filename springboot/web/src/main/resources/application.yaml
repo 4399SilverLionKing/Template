@@ -25,3 +25,11 @@ spring:
       connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=500 # 开启SQL合并，设置慢SQL的阈值
 server:
   port: 4444
+logging:
+  level:
+    com.asta.web: DEBUG
+    com.asta.user: DEBUG
+    org.springframework: INFO
+jwt:
+  secret: 5468576D5A7134743777217A25432A462D4A614E645267556A586E3272357538
+  expiration: 86400000  # 令牌过期时间，单位毫秒，86400000 = 24小时
