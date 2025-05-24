@@ -3,7 +3,7 @@ FROM openjdk:17
 # 指定维护者的名字 TODO
 MAINTAINER Asta
 # 将当前target目录下的jar包复制到docker容器中 TODO
-ADD target/demo-0.0.1-SNAPSHOT.jar app.jar
+ADD target/web-0.0.1-SNAPSHOT.jar app.jar
 # 定义JVM参数
 ENV JAVA_OPTS="-Xms256m -Xmx256m"
 ENV SPRING_ARGS=""

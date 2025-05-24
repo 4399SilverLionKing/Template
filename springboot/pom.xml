@@ -26,7 +26,6 @@
         </developer>
     </developers>
     <modules>
-        <module>apis</module>
         <module>common</module>
         <module>domain</module>
         <module>user</module>
