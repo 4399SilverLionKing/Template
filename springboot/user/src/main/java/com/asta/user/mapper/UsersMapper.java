@@ -38,7 +38,7 @@ public interface UsersMapper extends BaseMapper<Users> {
     /**
      * 通过用户名查找用户
      * @param username 用户名
-     * @return 包含Spring Security User对象的Optional
+     * @return 包含Spring Security User对象的Optional(处理用户不存在的场景)
      */
     default Optional<User> findByUsername(String username) {
         // 构建查询条件
