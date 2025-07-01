@@ -1,11 +1,11 @@
 package com.asta.backend.entity.po;
 
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.*;
+
 import java.time.LocalDateTime;
-import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
+
+import io.micrometer.core.instrument.Meter;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -26,7 +26,7 @@ public class User implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(value = "user_id", type = IdType.AUTO)
+    @TableId(value = "user_id", type = IdType.ASSIGN_ID)
     private Integer userId;
 
     @TableField("username")
@@ -38,7 +38,7 @@ public class User implements Serializable {
     @TableField("password")
     private String password;
 
-    @TableField("create_date")
+    @TableField(value = "create_date", fill = FieldFill.INSERT)
     private LocalDateTime createDate;
 
     @TableField("role")
