@@ -65,8 +65,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         // 1. 检查用户是否已经存在
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("username", query.getUsername());
-        queryWrapper.eq("email", query.getEmail());
+        queryWrapper.eq("username", query.getUsername())
+                    .or()
+                    .eq("email", query.getEmail());
         User existingUser = mapper.selectOne(queryWrapper);
 
         // 2. 如果用户已存在，返回false

@@ -4,7 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum ResultStatus {
-    /***/
+
     UNAUTHORIZED("暂未登录或TOKEN已经过期", 401),
     FORBIDDEN("没有相关权限", 403),
     SERVER_ERROR("服务器错误", 9994),

@@ -43,3 +43,7 @@ server:
 jwt:
   secret: 5468576D5A7134743777217A25432A462D4A614E645267556A586E3272357538
   expiration: 86400000
+
+logging:
+  level:
+    com.asta.backend: debug
