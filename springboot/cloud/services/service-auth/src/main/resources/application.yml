@@ -1,0 +1,19 @@
+server:
+  port: ${sp.auth}
+spring:
+  application:
+    name: ${sn.auth}
+  config:
+    import:
+      - nacos:system.yml
+      - nacos:datasource.yml
+  cloud:
+    nacos:
+      server-addr: 192.168.12.128:8848 #TODO
+      config:
+        namespace: public
+
+logging:
+  level:
+    com.asta.auth: DEBUG
+    org.springframework.security: DEBUG

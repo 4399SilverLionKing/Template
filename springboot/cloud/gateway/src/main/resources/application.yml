@@ -1,0 +1,33 @@
+server:
+  port: ${sp.gateway}
+spring:
+  application:
+    name: ${sn.gateway}
+  config:
+    import: nacos:system.yml
+  cloud:
+    nacos:
+      server-addr: 192.168.12.128:8848 #TODO
+      config:
+        namespace: public
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origin-patterns: '*'
+            allowed-headers: '*'
+            allowed-methods: '*'
+            allow-credentials: true
+      routes:
+        # 认证服务路由
+        - id: auth-service
+          uri: lb://AUTH
+          predicates:
+            - Path=/auth/**
+
+# 日志配置
+logging:
+  level:
+    com.asta.gateway: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.cloud.gateway: DEBUG
