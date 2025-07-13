@@ -1,2 +1,2 @@
 # Template
-My SpringBoot、Vue Starter Template
+My Spring、Nextjs、Vue Starter Template

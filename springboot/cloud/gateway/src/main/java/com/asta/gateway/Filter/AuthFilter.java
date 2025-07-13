@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -19,7 +20,9 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Optional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AuthFilter implements GlobalFilter, Ordered {
@@ -61,10 +64,15 @@ public class AuthFilter implements GlobalFilter, Ordered {
                     .parseClaimsJws(token)
                     .getBody();
 
-            // 4. 将用户信息添加到请求头，转发给下游服务
+            // 处理可能的空指针异常
+            String rolesStr = Optional.ofNullable(claims.get("roles", List.class))
+                    .map(Object::toString)
+                    .orElse("");
+
+            // 将用户信息添加到请求头，转发给下游服务
             ServerHttpRequest newRequest = request.mutate()
                     .header("X-User-Name", claims.getSubject())
-                    .header("X-User-Roles", claims.get("roles", List.class).toString())
+                    .header("X-User-Roles", rolesStr)
                     .build();
 
             return chain.filter(exchange.mutate().request(newRequest).build());

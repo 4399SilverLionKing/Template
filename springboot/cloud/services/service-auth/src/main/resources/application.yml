@@ -11,7 +11,9 @@ spring:
     nacos:
       server-addr: 192.168.12.128:8848 #TODO
       config:
-        namespace: public
+        namespace: template
+      discovery:
+        namespace: template
 
 logging:
   level:

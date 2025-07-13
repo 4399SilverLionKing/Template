@@ -9,7 +9,9 @@ spring:
     nacos:
       server-addr: 192.168.12.128:8848 #TODO
       config:
-        namespace: public
+        namespace: template
+      discovery:
+        namespace: template
     gateway:
       globalcors:
         cors-configurations:
@@ -24,6 +26,10 @@ spring:
           uri: lb://AUTH
           predicates:
             - Path=/auth/**
+        - id: ai-service
+          uri: lb://AI
+          predicates:
+            - Path=/ai/**
 
 # 日志配置
 logging:

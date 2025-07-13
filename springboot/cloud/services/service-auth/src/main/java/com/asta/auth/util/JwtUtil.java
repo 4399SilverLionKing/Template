@@ -5,14 +5,14 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtUtil {
@@ -83,6 +83,19 @@ public class JwtUtil {
      */
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+
+        // 2. 从 userDetails 中获取权限集合
+        Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
+
+        // 3. 判断权限集合是否不为空
+        if (authorities != null && !authorities.isEmpty()) {
+            // 4. 将 GrantedAuthority 集合转换为 String 列表
+            List<String> roles = authorities.stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+
+            claims.put("roles", roles);
+        }
         return createToken(claims, userDetails.getUsername());
     }
 
