@@ -1,8 +1,27 @@
-from langchain import hub
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_openai_tools_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.chat_message_histories import RedisChatMessageHistory
+from langchain.memory import ConversationBufferMemory
 from app.core.config import settings
 from typing import AsyncGenerator
+
+def init_redis_memory():
+    session_id = "abc"
+
+    redis_history = RedisChatMessageHistory(
+        session_id=session_id, 
+        url=f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
+        ttl=3600
+    )
+    
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        chat_memory=redis_history,
+        return_messages=True
+    )
+
+    return memory
 
 def create_agent_executor():
 
@@ -16,14 +35,22 @@ def create_agent_executor():
     # 工具
     tools = []
 
-    # 使用标准提示词模板
-    prompt = hub.pull("hwchase17/openai-tools-agent")
+    # 提示词模板
+    prompt =  ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant."),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
 
     # Agent
     agent = create_openai_tools_agent(llm, tools, prompt)
+    
+    # 初始化Redis内存
+    memory = init_redis_memory()
 
     # 执行器
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, memory=memory, verbose=True)
 
     return agent_executor
 
@@ -41,8 +68,13 @@ def create_streaming_agent_executor():
     # 工具
     tools = []
 
-    # 使用标准提示词模板
-    prompt = hub.pull("hwchase17/openai-tools-agent")
+    # 提示词模板
+    prompt =  ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant."),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
 
     # Agent
     agent = create_openai_tools_agent(llm, tools, prompt)

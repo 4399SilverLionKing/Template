@@ -3,7 +3,6 @@ from fastapi.responses import StreamingResponse
 from app.schemas.chat import ChatRequest, ChatResponse, StreamChatRequest, StreamChunk
 from app.service.agent import agent_executor_instance, stream_agent_response
 import logging
-import json
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

@@ -3,11 +3,11 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.route import api_router
-from app.core.config import settings
+from app.core.global_config import global_settings
 import uvicorn
 
 app = FastAPI(
-    title=settings.PROJECT_NAME
+    title=global_settings.PROJECT_NAME
 )
 
 # 配置CORS中间件
