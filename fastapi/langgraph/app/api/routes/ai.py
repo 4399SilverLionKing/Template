@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.service.reactAgent import agent
+from fastapi.langgraph.app.service.react_agent import agent
 from langchain_core.messages import HumanMessage
 import logging
 

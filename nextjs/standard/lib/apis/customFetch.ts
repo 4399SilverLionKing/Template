@@ -1,22 +1,20 @@
-// 请求拦截器类型定义
+// ============= 类型定义 =============
+
 export interface RequestInterceptor {
   (config: RequestInit): RequestInit | Promise<RequestInit>;
 }
 
-// 响应拦截器类型定义
 export interface ResponseInterceptor {
   onFulfilled?: (response: Response) => Response | Promise<Response>;
   onRejected?: (error: any) => any;
 }
 
-// 后端返回的数据结构
 export interface BackendResponse<T = any> {
   code: number;
   message: string;
   data: T;
 }
 
-// 响应数据接口
 export interface ApiResponse<T = any> {
   data: T;
   status: number;
@@ -24,7 +22,13 @@ export interface ApiResponse<T = any> {
   headers: Headers;
 }
 
-// 状态码枚举
+export interface BlobResponse {
+  blob: Blob;
+  headers: Headers;
+  status: number;
+  statusText: string;
+}
+
 export enum ResponseCode {
   SUCCESS = 10000,
   FAIL = 9999,
@@ -37,7 +41,6 @@ export enum ResponseCode {
   UNAUTHORIZED = 401,
 }
 
-// 自定义API错误类
 export class ApiError extends Error {
   public readonly status: number;
   public readonly data: any;
@@ -54,43 +57,58 @@ export class ApiError extends Error {
   }
 }
 
-// 获取token的函数类型
 export type TokenProvider = () => string | null | Promise<string | null>;
+
+// ============= 常量定义 =============
+
+const DEFAULT_HEADERS = {
+  'Content-Type': 'application/json',
+} as const;
+
+const HTTP_STATUS_MESSAGES: Record<number, string> = {
+  400: 'Bad Request - 请求参数错误',
+  401: 'Unauthorized - 未授权访问',
+  403: 'Forbidden - 禁止访问',
+  404: 'Not Found - 资源不存在',
+  422: 'Unprocessable Entity - 请求参数验证失败',
+  429: 'Too Many Requests - 请求过于频繁',
+  500: 'Internal Server Error - 服务器内部错误',
+  502: 'Bad Gateway - 网关错误',
+  503: 'Service Unavailable - 服务不可用',
+} as const;
+
+// ============= 主要类定义 =============
 
 class CustomFetch {
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
   private tokenProvider: TokenProvider | null = null;
 
-  // 设置token提供者
-  setTokenProvider(provider: TokenProvider) {
+  // ============= 公共配置方法 =============
+
+  setTokenProvider(provider: TokenProvider): void {
     this.tokenProvider = provider;
   }
 
-  // 添加请求拦截器
-  addRequestInterceptor(interceptor: RequestInterceptor) {
+  addRequestInterceptor(interceptor: RequestInterceptor): void {
     this.requestInterceptors.push(interceptor);
   }
 
-  // 添加响应拦截器
-  addResponseInterceptor(interceptor: ResponseInterceptor) {
+  addResponseInterceptor(interceptor: ResponseInterceptor): void {
     this.responseInterceptors.push(interceptor);
   }
 
-  // 应用请求拦截器
+  // ============= 私有工具方法 =============
+
   private async applyRequestInterceptors(
     config: RequestInit
   ): Promise<RequestInit> {
-    let finalConfig = { ...config };
-
-    for (const interceptor of this.requestInterceptors) {
-      finalConfig = await interceptor(finalConfig);
-    }
-
-    return finalConfig;
+    return this.requestInterceptors.reduce(
+      async (configPromise, interceptor) => interceptor(await configPromise),
+      Promise.resolve({ ...config })
+    );
   }
 
-  // 应用响应拦截器
   private async applyResponseInterceptors(
     response: Response
   ): Promise<Response> {
@@ -112,7 +130,6 @@ class CustomFetch {
     return finalResponse;
   }
 
-  // 处理响应拦截器错误
   private async handleResponseError(error: any): Promise<never> {
     for (const interceptor of this.responseInterceptors) {
       if (interceptor.onRejected) {
@@ -122,161 +139,163 @@ class CustomFetch {
     throw error;
   }
 
-  // 添加Authorization头
-  private async addAuthHeader(headers: HeadersInit = {}): Promise<HeadersInit> {
-    if (!this.tokenProvider) return headers;
+  private async prepareHeaders(headers: HeadersInit = {}): Promise<Headers> {
+    const finalHeaders = new Headers({
+      ...DEFAULT_HEADERS,
+      ...headers,
+    });
 
-    const token = await this.tokenProvider();
-    if (!token) return headers;
+    // 添加认证头
+    if (this.tokenProvider) {
+      const token = await this.tokenProvider();
+      if (token) {
+        finalHeaders.set('Authorization', `Bearer ${token}`);
+      }
+    }
 
-    const headersObj = new Headers(headers);
-    headersObj.set('Authorization', `Bearer ${token}`);
-
-    return headersObj;
+    return finalHeaders;
   }
 
-  // 解析响应数据
   private async parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+    const contentType = response.headers.get('content-type');
     let rawData: any;
 
-    const contentType = response.headers.get('content-type');
-
     try {
-      if (contentType && contentType.includes('application/json')) {
-        rawData = await response.json();
-      } else {
-        rawData = await response.text();
-      }
+      rawData = contentType?.includes('application/json')
+        ? await response.json()
+        : await response.text();
     } catch (error) {
       throw new ApiError(response.status, 'Failed to parse response', error);
     }
 
     // 检查是否是后端标准格式
-    if (
-      rawData &&
-      typeof rawData === 'object' &&
-      'code' in rawData &&
-      'message' in rawData
-    ) {
+    if (this.isBackendResponse(rawData)) {
       const backendResponse = rawData as BackendResponse<T>;
 
-      // 根据后端状态码判断是否成功
       if (backendResponse.code !== ResponseCode.SUCCESS) {
         throw new ApiError(
-          response.status, // 使用原始HTTP状态码
+          response.status,
           backendResponse.message,
           backendResponse
         );
       }
 
-      return {
-        data: backendResponse.data,
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-      };
+      return this.createApiResponse(backendResponse.data, response);
     }
 
-    // 如果不是标准格式，直接返回原始数据
+    // 非标准格式，直接返回原始数据
+    return this.createApiResponse(rawData as T, response);
+  }
+
+  private isBackendResponse(data: any): boolean {
+    return (
+      data && typeof data === 'object' && 'code' in data && 'message' in data
+    );
+  }
+
+  private createApiResponse<T>(data: T, response: Response): ApiResponse<T> {
     return {
-      data: rawData as T,
+      data,
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,
     };
   }
 
-  // 统一错误处理
-  private handleError(response: Response, data: any): never {
-    let message = 'Request failed';
-
-    // 根据状态码提供更具体的错误信息
-    switch (response.status) {
-      case 400:
-        message = 'Bad Request - 请求参数错误';
-        break;
-      case 401:
-        message = 'Unauthorized - 未授权访问';
-        break;
-      case 403:
-        message = 'Forbidden - 禁止访问';
-        break;
-      case 404:
-        message = 'Not Found - 资源不存在';
-        break;
-      case 422:
-        message = 'Unprocessable Entity - 请求参数验证失败';
-        break;
-      case 429:
-        message = 'Too Many Requests - 请求过于频繁';
-        break;
-      case 500:
-        message = 'Internal Server Error - 服务器内部错误';
-        break;
-      case 502:
-        message = 'Bad Gateway - 网关错误';
-        break;
-      case 503:
-        message = 'Service Unavailable - 服务不可用';
-        break;
-      default:
-        message = `Request failed with status ${response.status}`;
+  private async parseErrorData(response: Response): Promise<any> {
+    try {
+      const contentType = response.headers.get('content-type');
+      return contentType?.includes('application/json')
+        ? await response.json()
+        : await response.text();
+    } catch {
+      return null;
     }
+  }
 
-    // 如果响应数据中有错误信息，优先使用
+  private createErrorMessage(status: number, data: any): string {
+    // 优先使用响应数据中的错误信息
     if (data && typeof data === 'object' && data.message) {
-      message = data.message;
+      return data.message;
     }
 
+    // 使用预定义的状态码消息
+    return (
+      HTTP_STATUS_MESSAGES[status] || `Request failed with status ${status}`
+    );
+  }
+
+  private handleError(response: Response, data: any): never {
+    const message = this.createErrorMessage(response.status, data);
     throw new ApiError(response.status, message, data);
   }
 
-  // 主要的请求方法
+  // ============= 核心请求方法 =============
+
+  private async executeRequest(
+    url: string,
+    config: RequestInit
+  ): Promise<Response> {
+    // 应用请求拦截器
+    const finalConfig = await this.applyRequestInterceptors(config);
+
+    // 准备headers
+    const headers = await this.prepareHeaders(finalConfig.headers);
+
+    // 发送请求
+    const response = await fetch(url, {
+      ...finalConfig,
+      headers,
+    });
+
+    // 应用响应拦截器
+    return this.applyResponseInterceptors(response);
+  }
+
   async request<T = any>(
     url: string,
     config: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      // 应用请求拦截器
-      let finalConfig = await this.applyRequestInterceptors(config);
-
-      // 设置默认headers
-      let headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...finalConfig.headers,
-      };
-
-      // 添加Authorization头
-      headers = await this.addAuthHeader(headers);
-
-      // 准备最终的fetch配置
-      const fetchConfig: RequestInit = {
-        ...finalConfig,
-        headers,
-      };
-
-      // 发送请求
-      let response = await fetch(url, fetchConfig);
-
-      // 应用响应拦截器
-      response = await this.applyResponseInterceptors(response);
-
-      // 解析响应数据
+      const response = await this.executeRequest(url, config);
       const parsedResponse = await this.parseResponse<T>(response);
 
-      // 检查响应状态并进行错误处理
       if (!response.ok) {
         this.handleError(response, parsedResponse.data);
       }
 
       return parsedResponse;
     } catch (error) {
-      // 应用响应错误拦截器
       return await this.handleResponseError(error);
     }
   }
 
-  // 便捷方法
+  async requestBlob(
+    url: string,
+    config: RequestInit = {}
+  ): Promise<BlobResponse> {
+    try {
+      const response = await this.executeRequest(url, config);
+
+      if (!response.ok) {
+        const errorData = await this.parseErrorData(response);
+        this.handleError(response, errorData);
+      }
+
+      const blob = await response.blob();
+      return {
+        blob,
+        headers: response.headers,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      return await this.handleResponseError(error);
+    }
+  }
+
+  // ============= 便捷方法 =============
+
   async get<T = any>(
     url: string,
     config?: RequestInit
@@ -316,59 +335,51 @@ class CustomFetch {
   }
 }
 
+// ============= 工厂函数和默认实例 =============
+
+function createTokenProvider(): TokenProvider {
+  return () => {
+    if (typeof window === 'undefined') return null;
+
+    try {
+      const authStorage = localStorage.getItem('auth-storage');
+      if (!authStorage) return null;
+
+      const parsed = JSON.parse(authStorage);
+      return parsed.state?.token || null;
+    } catch {
+      return null;
+    }
+  };
+}
+
+function createDefaultInstance(): CustomFetch {
+  const instance = new CustomFetch();
+
+  // 设置token提供者
+  instance.setTokenProvider(createTokenProvider());
+
+  // 设置默认响应拦截器
+  instance.addResponseInterceptor({
+    onFulfilled: response => response,
+    onRejected: error => {
+      console.error('API Error:', error);
+
+      // 可以在这里添加全局错误处理逻辑
+      // 例如：401错误自动登出
+      // if (error instanceof ApiError && error.status === 401) {
+      //   // 处理未授权错误
+      // }
+
+      return Promise.reject(error);
+    },
+  });
+
+  return instance;
+}
+
 // 创建默认实例
-const customFetch = new CustomFetch();
-
-// 设置token提供者
-customFetch.setTokenProvider(() => {
-  // 动态导入避免循环依赖
-  if (typeof window !== 'undefined') {
-    // 从 Zustand persist 存储中获取 token
-    const authStorage = localStorage.getItem('auth-storage');
-    if (authStorage) {
-      try {
-        const parsed = JSON.parse(authStorage);
-        return parsed.state?.token || null;
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
-});
-
-// 设置默认的请求拦截器（添加通用headers等）
-customFetch.addRequestInterceptor(config => {
-  // 可以在这里添加通用的请求处理逻辑
-  return config;
-});
-
-// 设置默认的响应拦截器
-customFetch.addResponseInterceptor({
-  onFulfilled: response => {
-    // 可以在这里添加通用的响应处理逻辑
-    return response;
-  },
-  onRejected: error => {
-    // 只处理HTTP 401错误，自动登出
-    if (error instanceof ApiError && error.status === 401) {
-      // 动态导入避免循环依赖
-      if (typeof window !== 'undefined') {
-        const { useAuthStore } = require('@/lib/stores/authStore');
-        const { clearAuth } = useAuthStore.getState();
-        clearAuth();
-
-        // 可以选择重定向到登录页
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-      }
-    }
-
-    console.error('API Error:', error);
-    return Promise.reject(error);
-  },
-});
+const customFetch = createDefaultInstance();
 
 export { CustomFetch, customFetch };
 export default customFetch;
